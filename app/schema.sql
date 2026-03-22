@@ -1,0 +1,30 @@
+CREATE TABLE sport (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL
+)
+
+CREATE TABLE team (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    sport_id INTEGER NOT NULL,
+    FOREIGN KEY (sport_id) REFERENCES sport(id)
+)
+
+CREATE TABLE stage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    team_id INTEGER NOT NULL,
+    FOREIGN KEY (team_id) REFERENCES team(id)
+)
+
+CREATE TABLE event (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    event_date DATE NOT NULL,
+    event_time TIME NOT NULL,
+    goals_1 INTEGER NOT NULL,
+    goals_2 INTEGER NOT NULL,
+    winner TEXT NOT NULL,
+    stage_id INTEGER NOT NULL,
+    FOREIGN KEY (stage_id) REFERENCES stage(id)
+)
