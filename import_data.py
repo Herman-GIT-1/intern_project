@@ -1,29 +1,27 @@
 import json
 import sqlite3
 
-from django import db
+
 
 DB_PATH = 'sports_calendar.db'
 
 
-def get_data():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+def get_or_create(cursor, table, lookup_field, lookup_value, insert_data):
+    # Find or create a record and return its id.
+    cursor.execute(
+        f"SELECT id FROM {table} WHERE {lookup_field} = ?",
+        (lookup_value,)
+    )
+    row = cursor.fetchone()
+    if row:
+        return row[0]
 
-    cursor.execute("SELECT * FROM sport")
-    sports = cursor.fetchall()
-
-    cursor.execute("SELECT * FROM team")
-    teams = cursor.fetchall()
-
-
-    conn.close()
-
-    return {
-        "sports": sports,
-        "teams": teams,
-
-    }
+    cursor.execute(
+        f"INSERT INTO {table} ({', '.join(insert_data.keys())}) "
+        f"VALUES ({', '.join(['?'] * len(insert_data))})",
+        list(insert_data.values())
+    )
+    return cursor.lastrowid
 
 
 def import_data(json_file):
@@ -33,20 +31,37 @@ def import_data(json_file):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # Import data into the database
-    for match in data['sports']:
+
+    sport_id = get_or_create(
+        cursor, 'sport', 'name', 'Football', {'name': 'Football'}
+    )
+
+    for match in data['data']:  
+
+        # Competition
         comp_id = match.get('originCompetitionId')
         if comp_id:
-            db.execute(
+            cursor.execute(  
                 "INSERT OR IGNORE INTO competition (id, name) VALUES (?, ?)",
                 (comp_id, match.get('originCompetitionName'))
             )
 
+        # Stage
+        stage = match.get('stage')
+        stage_id = None
+        if stage:
+            stage_id = stage['id']
+            cursor.execute(
+                "INSERT OR IGNORE INTO stage (id, name, ordering) VALUES (?, ?, ?)",
+                (stage_id, stage['name'], stage['ordering'])
+            )
+
+        # Teams 
         def upsert_team(team_data):
             if team_data is None:
                 return None
-            return get_data(
-                db, 'team', 'slug', team_data['slug'],
+            return get_or_create( 
+                cursor, 'team', 'slug', team_data['slug'],
                 {
                     'name':          team_data['name'],
                     'official_name': team_data.get('officialName'),
@@ -56,16 +71,17 @@ def import_data(json_file):
                     '_sport_id':     sport_id,
                 }
             )
+
         home_team_id = upsert_team(match.get('homeTeam'))
         away_team_id = upsert_team(match.get('awayTeam'))
 
+        # Results
         result     = match.get('result') or {}
         home_goals = result.get('homeGoals')
         away_goals = result.get('awayGoals')
         winner     = result.get('winner')
 
-        
-        db.execute(
+        cursor.execute(  
             """
             INSERT INTO event (
                 event_date, event_time, status, season,
@@ -90,10 +106,10 @@ def import_data(json_file):
             )
         )
 
-    db.commit()
-    db.close()
+    conn.commit()  
+    conn.close()
     print(f"Imported {len(data['data'])} matches.")
 
 
-    conn.commit()
-    conn.close()
+if __name__ == '__main__':
+    import_data('data.json')
