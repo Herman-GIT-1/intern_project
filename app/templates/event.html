@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ event.home_team or 'TBD' }} vs {{ event.away_team or 'TBD' }} — Sports Calendar{% endblock %}
+
+{% block content %}
+
+<a href="{{ url_for('main.index') }}" class="back-link">← BACK TO EVENTS</a>
+
+<div class="event-detail">
+
+
+    <div class="detail-header">
+        <span class="sport-badge sport-{{ event.sport | lower | replace(' ', '-') }}">{{ event.sport }}</span>
+        <span class="status-badge status-{{ event.status }}">{{ event.status | upper }}</span>
+    </div>
+
+
+    <div class="scoreboard">
+        <div class="team-block">
+            <span class="team-name">{{ event.home_team or 'TBD' }}</span>
+            <span class="team-label">HOME</span>
+        </div>
+
+        <div class="score-block">
+            {% if event.status == 'played' %}
+                <span class="score mono">{{ event.home_goals }} : {{ event.away_goals }}</span>
+                {% if event.winner %}
+                    <span class="winner-label">{{ event.winner }} wins</span>
+                {% endif %}
+            {% else %}
+                <span class="score mono">vs</span>
+            {% endif %}
+        </div>
+
+        <div class="team-block">
+            <span class="team-name">{{ event.away_team or 'TBD' }}</span>
+            <span class="team-label">AWAY</span>
+        </div>
+    </div>
+
+
+    <div class="detail-grid">
+        <div class="detail-item">
+            <span class="detail-label">DATE</span>
+            <span class="detail-value mono">{{ event.event_date }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">TIME</span>
+            <span class="detail-value mono">{{ event.event_time[:5] }} UTC</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">VENUE</span>
+            <span class="detail-value">{{ event.venue or 'TBD' }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">SEASON</span>
+            <span class="detail-value mono">{{ event.season or '—' }}</span>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

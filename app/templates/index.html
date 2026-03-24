@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}Events — Sports Calendar{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>ALL EVENTS</h1>
+    <span class="event-count">{{ events|length }} matches</span>
+</div>
+
+<form class="filters" method="GET" action="/">
+    <div class="filter-group">
+        <label>SPORT</label>
+        <select name="sport" onchange="this.form.submit()">
+            <option value="">All Sports</option>
+            <option value="Football"   {% if request.args.get('sport') == 'Football'   %}selected{% endif %}>Football</option>
+            <option value="Ice Hockey" {% if request.args.get('sport') == 'Ice Hockey' %}selected{% endif %}>Ice Hockey</option>
+            <option value="Basketball" {% if request.args.get('sport') == 'Basketball' %}selected{% endif %}>Basketball</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>DATE</label>
+        <input type="date" name="date"
+               value="{{ request.args.get('date', '') }}"
+               onchange="this.form.submit()">
+    </div>
+    {% if request.args.get('sport') or request.args.get('date') %}
+        <a href="/" class="btn-clear">✕ CLEAR</a>
+    {% endif %}
+</form>
+
+
+{% if events %}
+<div class="table-wrapper">
+    <table class="events-table">
+        <thead>
+            <tr>
+                <th>DATE</th>
+                <th>TIME</th>
+                <th>SPORT</th>
+                <th>MATCH</th>
+                <th>VENUE</th>
+                <th>RESULT</th>
+                <th>STATUS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr class="event-row" onclick="window.location=this.dataset.url" data-url="{{ url_for('main.event_detail', event_id=event.id) }}">
+                <td class="mono">{{ event.event_date }}</td>
+                <td class="mono">{{ event.event_time[:5] }}</td>
+                <td><span class="sport-badge sport-{{ event.sport | lower | replace(' ', '-') }}">{{ event.sport }}</span></td>
+                <td class="match-cell">
+                    <span class="team">{{ event.home_team or 'TBD' }}</span>
+                    <span class="vs">vs</span>
+                    <span class="team">{{ event.away_team or 'TBD' }}</span>
+                </td>
+                <td class="venue-cell">{{ event.venue or '—' }}</td>
+                <td class="mono score-cell">
+                    {% if event.status == 'played' %}
+                        {{ event.home_goals }} : {{ event.away_goals }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td><span class="status-badge status-{{ event.status }}">{{ event.status | upper }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+    <div class="empty-state">
+        <span>◈</span>
+        <p>No events found.</p>
+        {% if request.args.get('sport') or request.args.get('date') %}
+            <a href="/">Clear filters</a>
+        {% endif %}
+    </div>
+{% endif %}
+
+
+<section class="add-event">
+    <h2>ADD EVENT</h2>
+    <form id="add-event-form">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>DATE *</label>
+                <input type="date" name="event_date" required>
+            </div>
+            <div class="form-group">
+                <label>TIME *</label>
+                <input type="time" name="event_time" required>
+            </div>
+            <div class="form-group">
+                <label>VENUE</label>
+                <input type="text" name="venue" placeholder="Optional">
+            </div>
+            <div class="form-group">
+                <label>SEASON</label>
+                <input type="number" name="season" placeholder="e.g. 2024">
+            </div>
+            <div class="form-group">
+                <label>SPORT ID *</label>
+                <input type="number" name="_sport_id" required min="1">
+            </div>
+            <div class="form-group">
+                <label>HOME TEAM ID *</label>
+                <input type="number" name="_home_team_id" required min="1">
+            </div>
+            <div class="form-group">
+                <label>AWAY TEAM ID *</label>
+                <input type="number" name="_away_team_id" required min="1">
+            </div>
+            <div class="form-group">
+                <label>STATUS</label>
+                <select name="status">
+                    <option value="scheduled">Scheduled</option>
+                    <option value="played">Played</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn-submit">+ ADD EVENT</button>
+        <p class="form-message" id="form-message"></p>
+    </form>
+</section>
+
+<script>
+document.getElementById('add-event-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form    = e.target;
+    const message = document.getElementById('form-message');
+    const data    = Object.fromEntries(new FormData(form));
+
+    ['_sport_id', '_home_team_id', '_away_team_id', 'season'].forEach(key => {
+        if (data[key]) data[key] = parseInt(data[key]);
+    });
+
+    try {
+        const res = await fetch('/api/events', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(data)
+        });
+
+        if (res.ok) {
+            const result = await res.json();
+            message.textContent = `Event #${result.id} added successfully.`;
+            message.className   = 'form-message success';
+            form.reset();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            message.textContent = 'Failed to add event. Check required fields.';
+            message.className   = 'form-message error';
+        }
+    } catch {
+        message.textContent = 'Network error.';
+        message.className   = 'form-message error';
+    }
+});
+</script>
+
+{% endblock %}
